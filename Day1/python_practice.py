@@ -3,8 +3,8 @@ print("Hello Python Full Stack Developer")
 my_list=[10,20,30]
 #lsit are mutable, meaning we can change the values of list.
 
-list.append(50)
-print(list)
+my_list.append(50)
+print(my_list)
 
 
 my_tuple=(10,20,30)

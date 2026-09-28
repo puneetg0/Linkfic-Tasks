@@ -470,5 +470,9 @@ During Day 7, I learned:
 * CRUD concepts can be used to build APIs.
 
 ---
+"I built a Movie Collection Manager as a full-stack project using React and FastAPI. The main purpose of the application is to allow users to manage their movie collection. Users can add, view, update, and delete movies.
 
+I used React to build the frontend and FastAPI to create the backend REST APIs. The React frontend sends HTTP requests to the FastAPI backend, and the backend processes the request and returns the movie data.
+
+I implemented CRUD operations such as POST for creating a movie, GET for reading movies, PUT for updating a movie, and DELETE for removing a movie. I also used Git and GitHub to manage and document the project."
 

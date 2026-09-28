@@ -1,6 +1,6 @@
-I am a complete beginner learning Python backend development.
 
-I am working on **Day 6 of my internship learning tasks**. I want to build a small beginner-friendly **FastAPI Student API project** and complete all the assigned tasks below.
+
+**Day 6 of my internship learning tasks**. I want to build a small beginner-friendly **FastAPI Student API project** and complete all the assigned tasks below.
 
 ## Day 6 Tasks
 

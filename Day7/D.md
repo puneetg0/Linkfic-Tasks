@@ -471,14 +471,4 @@ During Day 7, I learned:
 
 ---
 
-# 10. Next Step
 
-The next step is to start building the **Movie Collection Manager** using:
-
-```text
-Frontend → React
-Backend  → FastAPI
-API      → REST API
-```
-
-I will first build the backend and then connect it with the React frontend.

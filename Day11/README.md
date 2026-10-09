@@ -1,5 +1,17 @@
 # Day 11 and Day 12 - PostgreSQL, FastAPI, and React
 
+1. Install PostgreSQL and connect it with FastAPI using SQLAlchemy.
+2. Create database tables and implement CRUD operations.
+3. Store, retrieve, and update records in PostgreSQL.
+4. Connect React with FastAPI using Fetch API.
+5. Display database records in React.
+6. Configure CORS and implement loading and error handling.
+7. Test the complete frontend-to-backend data flow.
+8. Practice SQL, database relationships, JSON parsing, and exception handling.
+9. Solve DSA problems: Find Missing Number, Maximum Subarray, Merge Intervals, and Find Pair Sum.
+10. Update the README and push the completed work to GitHub.
+
+
 ## What I Learned and Built
 
 Across Day 11 and Day 12, I connected the CineShelf React frontend to a FastAPI backend backed by PostgreSQL, and practiced following movie data through the complete application.

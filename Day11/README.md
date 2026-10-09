@@ -56,9 +56,58 @@ The React app is the client: it sends HTTP requests to FastAPI, the server. Fast
 
 CORS (Cross-Origin Resource Sharing) is a browser security rule for requests between different origins. An origin includes the protocol, hostname, and port. CineShelf's React development server and FastAPI use different ports, so FastAPI allows the React development origins in `backend/main.py`. If the browser reports a CORS error, check that the frontend address is included in `allow_origins`.
 
-### Fetch and Axios
+### Fetch
 
-`fetch` is built into modern browsers, so CineShelf can make HTTP requests without installing another package. `fetch` does not treat HTTP error status codes such as 404 as rejected promises, so the app checks `response.ok` itself. Axios is a separate library with conveniences such as automatic JSON handling and rejecting non-success HTTP responses by default. Both can call the same API; this project currently uses `fetch`.
+`fetch` is a built-in JavaScript function used to send HTTP requests to an API and receive data from the server. It does not require installing any additional package.
+
+In CineShelf, `fetch` is used to communicate with the FastAPI backend and perform operations such as getting, adding, updating, and deleting movies.
+
+**Example:**
+```javascript
+fetch("http://localhost:8000/movies")
+  .then(response => {
+    if (!response.ok) {
+      throw new Error("Failed to fetch movies");
+    }
+    return response.json();
+  })
+  .then(data => console.log(data))
+  .catch(error => console.log(error));
+```
+
+Here, `fetch()` sends a request to the API, `response.ok` checks whether the HTTP response is successful, and `response.json()` converts the response body into JavaScript data.
+
+### Axios
+
+Axios is a separate JavaScript library used to make HTTP requests to APIs. It must be installed before using it in a project.
+
+Axios provides features such as automatic JSON data handling and automatically rejecting HTTP responses with unsuccessful status codes, such as 404 or 500.
+
+**Example:**
+```javascript
+import axios from "axios";
+
+axios.get("http://localhost:8000/movies")
+  .then(response => console.log(response.data))
+  .catch(error => console.log(error));
+```
+
+Here, `axios.get()` sends a GET request to the API, and `response.data` provides the response data directly. The `catch()` block handles request errors, including unsuccessful HTTP status responses.
+
+### Difference Between Fetch and Axios
+
+| Fetch | Axios |
+|---|---|
+| Built into modern browsers | Requires installation |
+| Requires `response.json()` to parse JSON | Handles JSON responses automatically |
+| Requires checking `response.ok` for HTTP errors | Rejects unsuccessful HTTP responses by default |
+| Uses the standard JavaScript API | Provides additional request and response features |
+
+### Which One Does CineShelf Use?
+
+CineShelf currently uses **Fetch** to communicate with the FastAPI backend. It is sufficient for this project because it supports all the HTTP methods needed to manage the movie collection without installing an additional library.
+
+Both Fetch and Axios can communicate with the same API. The choice depends on the project's requirements and developer preference.
 
 ### Loading and Error Handling
 
@@ -125,15 +174,10 @@ Keep this terminal open while using the API. The `--reload` option restarts the 
 
 Then open `http://127.0.0.1:8000/docs` to try the endpoints using Swagger UI. Postman can also send requests to `http://127.0.0.1:8000`.
 
-## Day 11-12 Presentation: Show the Complete React → FastAPI → PostgreSQL Flow
+## Day 11-12 Presentation: Complete React → FastAPI → PostgreSQL Flow
 
 This walkthrough demonstrates that React displays real PostgreSQL records, and that an update made in the React UI travels through FastAPI and is saved back to PostgreSQL.
 
-### Before the presentation
-
-- Make sure the local PostgreSQL server is running.
-- Confirm `backend/.env` has the local `DATABASE_URL`. Never show this file or its password during the presentation.
-- Open the Day 11 project folder in VS Code.
 
 ### Start the backend and frontend
 

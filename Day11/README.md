@@ -1,35 +1,8 @@
-# Day 11 - PostgreSQL with FastAPI
-
-
-**Task List**
-
-Install PostgreSQL.
-
-Connect FastAPI with PostgreSQL.
-
-Create database tables.
-
-Store project data in the database.
-
-Retrieve and update records.
-
-Learn SQL vs NoSQL.
-
-Understand tables, primary keys, foreign keys, and database relationships.
-
-Practice Dictionary vs Database.
-
-Learn why databases are required and what SQL is.
-
-Solve Find Missing Number.
-
-Solve Maximum Subarray.
-
-Update the GitHub repository
+# Day 11 and Day 12 - PostgreSQL, FastAPI, and React
 
 ## What I Learned and Built
 
-Today I connected my CineShelf FastAPI project to PostgreSQL and practiced working with real database records.
+Across Day 11 and Day 12, I connected the CineShelf React frontend to a FastAPI backend backed by PostgreSQL, and practiced following movie data through the complete application.
 
 - Installed PostgreSQL and used pgAdmin to manage the local server and database.
 - Created the `cineshelf_dev` database and a separate `cineshelf_app` login role for the application.
@@ -40,8 +13,10 @@ Today I connected my CineShelf FastAPI project to PostgreSQL and practiced worki
 - Defined a SQLAlchemy model for the existing `movies` table.
 - Imported the existing movie list into PostgreSQL with `backend/migrate_movies.py`.
 - Changed the movie API routes to read and write records in PostgreSQL.
+- Connected the React frontend to FastAPI using the browser's built-in `fetch`.
+- Displayed movie records retrieved from PostgreSQL and handled loading and request errors in the UI.
 - Tested listing, filtering, creating, retrieving, updating, and deleting movies through HTTP requests.
-- Practiced two Python problems in [`dsapractice.py`](./dsapractice.py).
+- Practiced Find Missing Number and Maximum Subarray in [`dsapractice.py`](./dsapractice.py).
 
 The database currently uses one `movies` table. I learned what foreign keys and relationships are, but have not added a related table or foreign key yet.
 
@@ -72,6 +47,22 @@ A Python dictionary is useful for data held temporarily while a program runs. A 
 ### Why Use a Database?
 
 Applications need persistent storage to save information, retrieve it later, update it, and manage it consistently. CineShelf previously used a JSON file; its movie API now uses PostgreSQL.
+
+### Client-Server Communication, API Requests, and JSON
+
+The React app is the client: it sends HTTP requests to FastAPI, the server. FastAPI reads or changes PostgreSQL data and sends a response back. The response body uses JSON, a text format that represents values such as movie titles, ratings, and watched status. React parses that JSON and uses it to display or update the page.
+
+### CORS
+
+CORS (Cross-Origin Resource Sharing) is a browser security rule for requests between different origins. An origin includes the protocol, hostname, and port. CineShelf's React development server and FastAPI use different ports, so FastAPI allows the React development origins in `backend/main.py`. If the browser reports a CORS error, check that the frontend address is included in `allow_origins`.
+
+### Fetch and Axios
+
+`fetch` is built into modern browsers, so CineShelf can make HTTP requests without installing another package. `fetch` does not treat HTTP error status codes such as 404 as rejected promises, so the app checks `response.ok` itself. Axios is a separate library with conveniences such as automatic JSON handling and rejecting non-success HTTP responses by default. Both can call the same API; this project currently uses `fetch`.
+
+### Loading and Error Handling
+
+React displays a loading message while the initial movie request is pending. If the request fails, the app shows an error instead of silently pretending the movie list loaded. Movie updates also report request errors to the user.
 
 ---
 
@@ -134,71 +125,98 @@ Keep this terminal open while using the API. The `--reload` option restarts the 
 
 Then open `http://127.0.0.1:8000/docs` to try the endpoints using Swagger UI. Postman can also send requests to `http://127.0.0.1:8000`.
 
-# FastAPI Connected to PostgreSQL
+## Day 11-12 Presentation: Show the Complete React → FastAPI → PostgreSQL Flow
 
-These steps demonstrate both sides of the connection: FastAPI returns database records, and a record created through the API can be seen in PostgreSQL.
+This walkthrough demonstrates that React displays real PostgreSQL records, and that an update made in the React UI travels through FastAPI and is saved back to PostgreSQL.
 
-1. **Show the database in pgAdmin.** Connect to `cineshelf_dev` as `cineshelf_app` and open Query Tool. Run:
+### Before the presentation
 
-   ```sql
-   SELECT current_database(), current_user;
+- Make sure the local PostgreSQL server is running.
+- Confirm `backend/.env` has the local `DATABASE_URL`. Never show this file or its password during the presentation.
+- Open the Day 11 project folder in VS Code.
+
+### Start the backend and frontend
+
+1. Open a terminal at the Day 11 project root (the folder containing `backend`, `src`, and `package.json`). Start FastAPI:
+
+   ```powershell
+   .\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload
    ```
 
-   This should show `cineshelf_dev` and `cineshelf_app`. Do not show or disclose the password.
+   Keep this terminal open. The backend connects to PostgreSQL using the URL in `backend/.env`.
 
-2. **Start the backend.** In a terminal at the Day 11 project root, run the Uvicorn command above. Explain that the terminal is running the FastAPI backend.
+2. Open a second terminal at the same project root and start React:
 
-3. **Show the API documentation.** Open `http://127.0.0.1:8000/docs`. The interactive page is generated by FastAPI.
-
-4. **Read data through the API.** In Postman, send `GET http://127.0.0.1:8000/movies?search=Inception`. The JSON response should include the Inception record that is stored in PostgreSQL.
-
-5. **Create a temporary record.** Send `POST http://127.0.0.1:8000/movies` with **Body → raw → JSON** and this example:
-
-   ```json
-   {
-     "title": "Presentation Test Movie",
-     "genre": "Practice",
-     "release_year": 2020,
-     "rating": 7.5,
-     "watched": false,
-     "poster_url": null
-   }
+   ```powershell
+   npm run dev
    ```
 
-   Note the `id` in the response. It is generated by PostgreSQL.
+   Open the local address Vite prints, usually `http://localhost:5173`.
 
-6. **Prove the API inserted a database row.** In pgAdmin Query Tool, run:
+3. Optionally show FastAPI's generated API documentation at `http://127.0.0.1:8000/docs`.
+
+### Demonstrate records loading into React
+
+1. Show the CineShelf page displaying the movie collection.
+2. Open the browser Developer Tools (**F12**) and select **Network**. Refresh the page.
+3. Select the request to `http://localhost:8000/movies`. Show that it is a successful GET request and its response contains movie data as JSON.
+4. Explain the path: React `fetch` request → FastAPI `/movies` route → SQLAlchemy query → PostgreSQL `movies` table → JSON response → React movie cards.
+5. Point out the loading message and error message handling in the React app. FastAPI allows the local React origin through CORS settings in `backend/main.py`.
+
+### Demonstrate an update travelling back to PostgreSQL
+
+1. In pgAdmin, open Query Tool for `cineshelf_dev` as `cineshelf_app`. Run this safe read-only query to choose a movie and note its ID and current watched status:
 
    ```sql
-   SELECT id, title, genre, release_year, rating, watched
+   SELECT id, title, watched
    FROM movies
-   WHERE title = 'Presentation Test Movie';
+   ORDER BY id
+   LIMIT 5;
    ```
 
-   The row returned by this SQL query is the same record Postman created by calling FastAPI.
+2. In the React app, click the watched-status circle/checkmark for one of the movies shown in the query. The UI sends a `PATCH` request to `/movies/{id}/watched`.
+3. In Developer Tools → **Network**, select that PATCH request. Show the request and the JSON response, including the updated `watched` value.
+4. Run the SQL query again in pgAdmin. Confirm that PostgreSQL now stores the changed value.
+5. Click the status control for the same movie again to restore its original watched value, then run the query once more to show the restored value. This keeps the original movie data unchanged after the demo.
 
-7. **Show an update.** In Postman, send `PATCH http://127.0.0.1:8000/movies/<id>/watched`, replacing `<id>` with the ID from the create response. Use this JSON body:
+### Optional: demonstrate creating and deleting a temporary movie
 
-   ```json
-   {
-     "watched": true
-   }
-   ```
+Use Postman to send `POST http://127.0.0.1:8000/movies` with **Body → raw → JSON**:
 
-   Run the same `SELECT` query in pgAdmin again and show that `watched` is now `true`.
+```json
+{
+  "title": "Presentation Test Movie",
+  "genre": "Practice",
+  "release_year": 2020,
+  "rating": 7.5,
+  "watched": false,
+  "poster_url": null
+}
+```
 
-8. **Clean up the demo record.** Send `DELETE http://127.0.0.1:8000/movies/<id>` using that same ID. Run the `SELECT` query once more; it should return no rows.
+Note the returned ID. Refresh CineShelf and show the new movie in React. In pgAdmin, verify it with:
 
-Use a temporary example record for the demo. Avoid displaying the `.env` file or any passwords in the presentation.
+```sql
+SELECT id, title, genre, release_year, rating, watched
+FROM movies
+WHERE title = 'Presentation Test Movie';
+```
+
+Delete the temporary movie using `DELETE http://127.0.0.1:8000/movies/<id>` in Postman (replace `<id>` with the returned ID), then refresh the frontend and run the SQL query again to show that it is gone.
+
+### Short presentation summary
+
+> “PostgreSQL stores the movie records. FastAPI exposes those records through HTTP endpoints. React calls the API with `fetch`, receives JSON, and renders the movies. When I change a movie's watched status, React sends a PATCH request, FastAPI updates PostgreSQL, and the API returns the saved record.”
+
+Never display the `.env` file, database password, or other credentials in a screen share or screenshot.
 
 ---
 
 ## Challenges I Faced and How I Solved Them
 
 1. **Finding the right pgAdmin connection:** pgAdmin first showed the server connection as `PostgreSQL 18` and I was connected as the administrator `postgres`. I registered a separate server connection for the app user and database.
-
-
-
-
-
-
+2. **Database login failed:** I checked the spelling of `cineshelf_app` and reset its password while connected as `postgres`, then entered the matching credentials in the app's pgAdmin connection.
+3. **SQL query typo:** I initially typed `dataname` instead of PostgreSQL's `datname` column. Correcting the column name fixed the query.
+4. **Python variables were undefined:** The SQLAlchemy engine was created before `database_url` had been loaded, and the session factory also needs the engine first. Moving setup into dependency order fixed those errors.
+5. **Connecting SQLAlchemy results to API responses:** I configured the Pydantic `Movie` schema with `from_attributes=True` so FastAPI can serialize SQLAlchemy model objects.
+6. **Checking the whole data flow:** I verified API-created records with SQL in pgAdmin and verified React's API requests in the browser Network panel.

@@ -26,3 +26,5 @@ backend/movies.json
 *.sln
 *.sw?
 backend/.env
+__pycache__/
+*.py[cod]

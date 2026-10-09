@@ -1,5 +1,32 @@
 # Day 11 - PostgreSQL with FastAPI
 
+
+**Task List**
+
+Install PostgreSQL.
+
+Connect FastAPI with PostgreSQL.
+
+Create database tables.
+
+Store project data in the database.
+
+Retrieve and update records.
+
+Learn SQL vs NoSQL.
+
+Understand tables, primary keys, foreign keys, and database relationships.
+
+Practice Dictionary vs Database.
+
+Learn why databases are required and what SQL is.
+
+Solve Find Missing Number.
+
+Solve Maximum Subarray.
+
+Update the GitHub repository
+
 ## What I Learned and Built
 
 Today I connected my CineShelf FastAPI project to PostgreSQL and practiced working with real database records.
@@ -107,7 +134,7 @@ Keep this terminal open while using the API. The `--reload` option restarts the 
 
 Then open `http://127.0.0.1:8000/docs` to try the endpoints using Swagger UI. Postman can also send requests to `http://127.0.0.1:8000`.
 
-### Presentation Demo: Show FastAPI Connected to PostgreSQL
+# FastAPI Connected to PostgreSQL
 
 These steps demonstrate both sides of the connection: FastAPI returns database records, and a record created through the API can be seen in PostgreSQL.
 

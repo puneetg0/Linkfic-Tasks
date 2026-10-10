@@ -69,7 +69,7 @@ database credentials, or the JWT secret.
 
 **Show:** CineShelf and its login screen.
 
-**Say:** “The original CineShelf could show and manage movies. The next
+   “The original CineShelf could show and manage movies. The next
 requirements were registration and login, a PostgreSQL-backed personal movie
 collection, protected movie operations, search, and a responsive dashboard.
 Rather than rebuilding the dashboard, I connected the existing Day 11–12
@@ -84,7 +84,7 @@ FastAPI integration, and the project structure.
 account, and show that it opens the dashboard. If appropriate, try registering
 the same email again to show the duplicate-account error.
 
-**Say:** “The browser sends the email and password to FastAPI. FastAPI validates
+   “The browser sends the email and password to FastAPI. FastAPI validates
 the input and stores a salted PBKDF2 password hash in PostgreSQL, never the
 plain-text password. A password hash is one-way: at login we hash the submitted
 password using the stored salt and compare the result securely.”
@@ -99,7 +99,7 @@ account is allowed to access.
 **Show:** Open `http://localhost:8000/docs` if you want to show the FastAPI
 routes. Then return to CineShelf and sign in.
 
-**Say:** “After valid credentials, FastAPI returns a signed, expiring JWT.
+   “After valid credentials, FastAPI returns a signed, expiring JWT.
 React keeps it in memory and attaches it as a Bearer token to API requests.
 FastAPI verifies the signature and expiration, looks up the account, and only
 then runs a protected route. A React route guard improves the user experience,
@@ -117,7 +117,7 @@ it starts with its own empty collection. Add a movie to the second account and
 then sign back into the first account to show the new movie is not visible
 there.
 
-**Say:** “Each movie row stores its owner's user ID. Every list, read, edit, and
+   “Each movie row stores its owner's user ID. Every list, read, edit, and
 delete operation is restricted to the signed-in account. The migration assigns
 the pre-existing shared collection to the first registered account so legacy
 movies are not left unowned; later accounts do not inherit that collection.”
@@ -136,7 +136,7 @@ authorization, and per-account data separation.
 **Show:** In the second account, add a movie, search for it, filter by genre,
 toggle its watched status, edit it, and delete it. Confirm the delete prompt.
 
-**Say:** “The existing responsive React dashboard provides the movie
+   “The existing responsive React dashboard provides the movie
 collection, search, genre filter, and watchlist. FastAPI routes perform Create,
 Read, Update, and Delete against PostgreSQL using SQLAlchemy. The movie model
 is a Python class, and the route handlers enforce ownership before changing a
@@ -153,7 +153,7 @@ the responsive layout.
 Then, optionally, use `/docs` to make a movie request without an authorization
 token.
 
-**Say:** “The login screen appears when there is no in-memory token, and
+   “The login screen appears when there is no in-memory token, and
 FastAPI independently rejects unauthenticated movie requests with 401.
 Attempts to edit or delete a movie owned by another account return not found,
 so the API does not reveal or allow changes to another user's movie.”
@@ -190,7 +190,7 @@ password hash in presentation screenshots.
 
 ### 8. Close with the implementation summary
 
-**Say:** “The frontend is React, the API is FastAPI, and SQLAlchemy connects
+   “The frontend is React, the API is FastAPI, and SQLAlchemy connects
 the protected routes to PostgreSQL. JWT authentication identifies the
 account; authorization scopes its movie collection. The original CineShelf
 dashboard is reused, and the migration connects the previous movie records to

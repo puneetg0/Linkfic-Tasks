@@ -210,20 +210,6 @@ If asked how the code is organized, point to:
 - `Day11/backend/migrate_day14.py`: migration and ownership assignment for
   older movies.
 
-### Presentation checklist
-
-- [ ] Start PostgreSQL and confirm `Day11/backend/.env` points to the intended
-  database; keep `.env` private.
-- [ ] Run the migration and start the FastAPI server.
-- [ ] Start the React/Vite server and check the browser before presenting.
-- [ ] Have two test accounts ready; know which one owns the original movies.
-- [ ] Demonstrate registration/login, separate libraries, movie search, add,
-  edit, watched status, delete, and sign out.
-- [ ] Show at least one validation/authentication error and the protected API.
-- [ ] Run both DSA practice scripts.
-- [ ] Capture screenshots or a short recording of the login, dashboard, and
-  per-account separation if a demo recording is required.
-- [ ] Never show `.env`, passwords, JWT secrets, or database credentials.
 
 ## What is included
 

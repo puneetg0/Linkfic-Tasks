@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..auth_day13 import User, get_current_user
 from ..database import get_db
 from ..models.db_models import MovieDB
 from ..schemas.movie import Movie, MovieFields, WatchedUpdate
@@ -9,9 +10,21 @@ from ..schemas.movie import Movie, MovieFields, WatchedUpdate
 router = APIRouter()
 
 
+def visible_to_user(user_id: int):
+    return MovieDB.owner_id == user_id
+
+
 @router.get("/genres", response_model=list[str])
-def get_genres(db: Session = Depends(get_db)) -> list[str]:
-    statement = select(MovieDB.genre).distinct().order_by(MovieDB.genre)
+def get_genres(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[str]:
+    statement = (
+        select(MovieDB.genre)
+        .where(visible_to_user(current_user.id))
+        .distinct()
+        .order_by(MovieDB.genre)
+    )
     return list(db.scalars(statement).all())
 
 
@@ -19,9 +32,14 @@ def get_genres(db: Session = Depends(get_db)) -> list[str]:
 def get_movies(
     search: str = Query(default="", max_length=120),
     genre: str = Query(default=""),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[MovieDB]:
-    statement = select(MovieDB).order_by(MovieDB.id)
+    statement = (
+        select(MovieDB)
+        .where(visible_to_user(current_user.id))
+        .order_by(MovieDB.id)
+    )
 
     if search:
         statement = statement.where(MovieDB.title.ilike(f"%{search}%"))
@@ -33,8 +51,17 @@ def get_movies(
 
 
 @router.get("/movies/{movie_id}", response_model=Movie)
-def get_movie(movie_id: int, db: Session = Depends(get_db)) -> MovieDB:
-    movie = db.get(MovieDB, movie_id)
+def get_movie(
+    movie_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MovieDB:
+    movie = db.scalar(
+        select(MovieDB).where(
+            MovieDB.id == movie_id,
+            visible_to_user(current_user.id),
+        )
+    )
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
@@ -43,9 +70,10 @@ def get_movie(movie_id: int, db: Session = Depends(get_db)) -> MovieDB:
 @router.post("/movies", response_model=Movie, status_code=status.HTTP_201_CREATED)
 def create_movie(
     movie_fields: MovieFields,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MovieDB:
-    movie = MovieDB(**movie_fields.model_dump())
+    movie = MovieDB(**movie_fields.model_dump(), owner_id=current_user.id)
     db.add(movie)
     db.commit()
     db.refresh(movie)
@@ -56,9 +84,15 @@ def create_movie(
 def update_movie(
     movie_id: int,
     movie_fields: MovieFields,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MovieDB:
-    movie = db.get(MovieDB, movie_id)
+    movie = db.scalar(
+        select(MovieDB).where(
+            MovieDB.id == movie_id,
+            MovieDB.owner_id == current_user.id,
+        )
+    )
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     for field, value in movie_fields.model_dump().items():
@@ -72,9 +106,15 @@ def update_movie(
 def update_watched_status(
     movie_id: int,
     update: WatchedUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MovieDB:
-    movie = db.get(MovieDB, movie_id)
+    movie = db.scalar(
+        select(MovieDB).where(
+            MovieDB.id == movie_id,
+            MovieDB.owner_id == current_user.id,
+        )
+    )
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     movie.watched = update.watched
@@ -84,8 +124,17 @@ def update_watched_status(
 
 
 @router.delete("/movies/{movie_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_movie(movie_id: int, db: Session = Depends(get_db)) -> Response:
-    movie = db.get(MovieDB, movie_id)
+def delete_movie(
+    movie_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    movie = db.scalar(
+        select(MovieDB).where(
+            MovieDB.id == movie_id,
+            MovieDB.owner_id == current_user.id,
+        )
+    )
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     db.delete(movie)

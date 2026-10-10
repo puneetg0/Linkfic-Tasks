@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Identity, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Identity, Integer, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -22,3 +22,8 @@ class MovieDB(Base):
         Boolean, nullable=False, server_default="false"
     )
     poster_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("day13_users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )

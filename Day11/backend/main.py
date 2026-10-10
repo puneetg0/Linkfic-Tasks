@@ -1,9 +1,20 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .auth_day13 import AuthBase, router as auth_router
+from .database import engine
 from .routes.movie import router as movie_router
 
-app = FastAPI(title="CineShelf API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    AuthBase.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="CineShelf API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,3 +31,4 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(movie_router)
+app.include_router(auth_router)

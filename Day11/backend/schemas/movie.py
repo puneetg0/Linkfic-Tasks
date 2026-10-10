@@ -28,3 +28,4 @@ class Movie(MovieFields):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    owner_id: Optional[int] = None

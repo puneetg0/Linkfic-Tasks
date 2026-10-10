@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react'
 import './style.css'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+async function authorizedFetch(url, accessToken, options = {}, onUnauthorized) {
+  const headers = new Headers(options.headers)
+  headers.set('Authorization', `Bearer ${accessToken}`)
+  const response = await fetch(url, { ...options, headers })
+
+  if (response.status === 401) {
+    onUnauthorized()
+    const error = new Error('Your session has expired. Please sign in again.')
+    error.status = 401
+    throw error
+  }
+
+  return response
+}
 
 const pages = [
   { id: 'home', label: 'Home' },
@@ -9,7 +24,7 @@ const pages = [
   { id: 'watchlist', label: 'To Watch' },
 ]
 
-function MovieCard({ movie, onToggleWatched, onEdit, onDelete, isUpdating }) {
+function MovieCard({ movie, isOwner, onToggleWatched, onEdit, onDelete, isUpdating }) {
   return (
     <article className="movie-card">
       <div className="poster-wrap">
@@ -28,32 +43,38 @@ function MovieCard({ movie, onToggleWatched, onEdit, onDelete, isUpdating }) {
       <div className="movie-info">
         <div className="movie-title-row">
           <h3>{movie.title}</h3>
-          <button
-            className={`watched-button ${movie.watched ? 'watched' : ''}`}
-            type="button"
-            onClick={() => onToggleWatched(movie)}
-            disabled={isUpdating}
-            aria-label={movie.watched ? `Mark ${movie.title} to watch` : `Mark ${movie.title} as watched`}
-            title={movie.watched ? 'Mark as not watched' : 'Mark as watched'}
-          >
-            {movie.watched ? '✓' : '○'}
-          </button>
+          {isOwner && (
+            <button
+              className={`watched-button ${movie.watched ? 'watched' : ''}`}
+              type="button"
+              onClick={() => onToggleWatched(movie)}
+              disabled={isUpdating}
+              aria-label={movie.watched ? `Mark ${movie.title} to watch` : `Mark ${movie.title} as watched`}
+              title={movie.watched ? 'Mark as not watched' : 'Mark as watched'}
+            >
+              {movie.watched ? '✓' : '○'}
+            </button>
+          )}
         </div>
         <p>{movie.genre} <span>·</span> {movie.release_year}</p>
-        <div className="movie-actions">
-          <button className="movie-action-button" type="button" onClick={() => onEdit(movie)} disabled={isUpdating}>
-            Edit
-          </button>
-          <button className="movie-action-button delete-movie-button" type="button" onClick={() => onDelete(movie)} disabled={isUpdating}>
-            Delete
-          </button>
-        </div>
+        {isOwner
+          ? (
+            <div className="movie-actions">
+              <button className="movie-action-button" type="button" onClick={() => onEdit(movie)} disabled={isUpdating}>
+                Edit
+              </button>
+              <button className="movie-action-button delete-movie-button" type="button" onClick={() => onDelete(movie)} disabled={isUpdating}>
+                Delete
+              </button>
+            </div>
+          )
+          : <p className="text-[9px] font-bold tracking-wide text-muted">ORIGINAL COLLECTION · READ ONLY</p>}
       </div>
     </article>
   )
 }
 
-function MovieForm({ movie, onSave, onClose, availableGenres }) {
+function MovieForm({ movie, onSave, onClose }) {
   const [form, setForm] = useState(() => movie ? {
     title: movie.title,
     genre: movie.genre,
@@ -64,7 +85,7 @@ function MovieForm({ movie, onSave, onClose, availableGenres }) {
   } : {
     title: '',
     genre: '',
-    release_year: 2025,
+    release_year: new Date().getFullYear(),
     rating: 7,
     watched: false,
     poster_url: '',
@@ -119,12 +140,7 @@ function MovieForm({ movie, onSave, onClose, availableGenres }) {
           </label>
           <label className="form-field flex min-w-0 flex-col gap-1.5 text-[11px] font-extrabold text-[#44514b]">
             <span>Genre</span>
-            <select className="h-[39px] w-full rounded border border-line bg-[#f7f8f4] px-2.5 text-xs text-ink focus:border-teal focus:outline-none" name="genre" value={form.genre} onChange={updateField} required>
-              <option value="">Choose a genre</option>
-              {availableGenres.map((availableGenre) => (
-                <option key={availableGenre} value={availableGenre}>{availableGenre}</option>
-              ))}
-            </select>
+            <input className="h-[39px] w-full rounded border border-line bg-[#f7f8f4] px-2.5 text-xs text-ink focus:border-teal focus:outline-none" name="genre" value={form.genre} onChange={updateField} placeholder="e.g. Adventure" required maxLength="40" />
           </label>
           <label className="form-field flex min-w-0 flex-col gap-1.5 text-[11px] font-extrabold text-[#44514b]">
             <span>Release year</span>
@@ -155,7 +171,7 @@ function MovieForm({ movie, onSave, onClose, availableGenres }) {
   )
 }
 
-function App() {
+function App({ accessToken, user, onLogout }) {
   const [movies, setMovies] = useState([])
   const [activePage, setActivePage] = useState('home')
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -169,24 +185,25 @@ function App() {
   useEffect(() => {
     const controller = new AbortController()
 
-    fetch(`${API_URL}/movies`, { signal: controller.signal })
+    authorizedFetch(`${API_URL}/movies`, accessToken, { signal: controller.signal }, onLogout)
       .then((response) => {
         if (!response.ok) throw new Error('Could not load movies.')
         return response.json()
       })
       .then(setMovies)
       .catch((requestError) => {
-        if (requestError.name !== 'AbortError') {
+        if (requestError.name !== 'AbortError' && requestError.status !== 401) {
           setError('Could not connect to the CineShelf backend. Start it, then refresh this page.')
         }
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
 
     return () => controller.abort()
-  }, [])
+  }, [accessToken, onLogout])
 
-  const availableGenres = [...new Set(movies.map((movie) => movie.genre))]
-  const genres = ['All', ...availableGenres]
+  const genres = ['All', ...new Set(movies.map((movie) => movie.genre))]
   const toWatchCount = movies.filter((movie) => !movie.watched).length
   const visibleMovies = movies.filter((movie) => {
     const matchesPage = activePage !== 'watchlist' || !movie.watched
@@ -201,11 +218,11 @@ function App() {
     setError('')
 
     try {
-      const response = await fetch(`${API_URL}/movies/${movie.id}/watched`, {
+      const response = await authorizedFetch(`${API_URL}/movies/${movie.id}/watched`, accessToken, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ watched: !movie.watched }),
-      })
+      }, onLogout)
       if (!response.ok) throw new Error('Could not update this movie.')
 
       const updatedMovie = await response.json()
@@ -213,18 +230,18 @@ function App() {
         item.id === updatedMovie.id ? updatedMovie : item
       )))
     } catch (requestError) {
-      setError(requestError.message)
+      if (requestError.status !== 401) setError(requestError.message)
     } finally {
       setUpdatingId(null)
     }
   }
 
   async function saveMovie(movieId, movieData) {
-    const response = await fetch(movieId === undefined ? `${API_URL}/movies` : `${API_URL}/movies/${movieId}`, {
+    const response = await authorizedFetch(movieId === undefined ? `${API_URL}/movies` : `${API_URL}/movies/${movieId}`, accessToken, {
       method: movieId === undefined ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(movieData),
-    })
+    }, onLogout)
     const result = await response.json().catch(() => null)
 
     if (!response.ok) {
@@ -249,7 +266,7 @@ function App() {
     setError('')
 
     try {
-      const response = await fetch(`${API_URL}/movies/${movie.id}`, { method: 'DELETE' })
+      const response = await authorizedFetch(`${API_URL}/movies/${movie.id}`, accessToken, { method: 'DELETE' }, onLogout)
       if (!response.ok) {
         const result = await response.json().catch(() => null)
         throw new Error(typeof result?.detail === 'string' ? result.detail : 'Could not delete this movie.')
@@ -257,7 +274,7 @@ function App() {
 
       setMovies((currentMovies) => currentMovies.filter((item) => item.id !== movie.id))
     } catch (requestError) {
-      setError(requestError.message)
+      if (requestError.status !== 401) setError(requestError.message)
     } finally {
       setUpdatingId(null)
     }
@@ -290,9 +307,13 @@ function App() {
             </button>
           ))}
         </nav>
-        <button className="add-movie-button inline-flex size-[30px] shrink-0 items-center justify-center gap-1 rounded bg-coral p-0 text-white transition-colors hover:bg-[#be402d] sm:h-9 sm:w-auto sm:px-3 sm:text-[11px] sm:font-extrabold" type="button" onClick={() => setIsAddOpen(true)} aria-label="Add movie" title="Add movie">
-          <span className="text-xl leading-none" aria-hidden="true">+</span><span className="hidden sm:inline">Add movie</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden max-w-[150px] truncate text-[10px] text-muted md:inline">{user.email}</span>
+          <button className="rounded border-0 bg-transparent px-1 text-[9px] font-bold text-muted hover:text-ink sm:text-[11px]" type="button" onClick={onLogout}>Sign out</button>
+          <button className="add-movie-button inline-flex size-[30px] shrink-0 items-center justify-center gap-1 rounded bg-coral p-0 text-white transition-colors hover:bg-[#be402d] sm:h-9 sm:w-auto sm:px-3 sm:text-[11px] sm:font-extrabold" type="button" onClick={() => setIsAddOpen(true)} aria-label="Add movie" title="Add movie">
+            <span className="text-xl leading-none" aria-hidden="true">+</span><span className="hidden sm:inline">Add movie</span>
+          </button>
+        </div>
       </header>
 
       <main>
@@ -358,6 +379,7 @@ function App() {
                 <MovieCard
                   key={movie.id}
                   movie={movie}
+                  isOwner={movie.owner_id === user.id}
                   onToggleWatched={toggleWatched}
                   onEdit={setEditingMovie}
                   onDelete={deleteMovie}
@@ -371,8 +393,8 @@ function App() {
       </main>
 
       <footer className="site-footer flex min-h-[58px] items-center justify-between bg-[#1d2926] px-4 py-3 text-[9px] font-bold text-[#d9e0da] sm:px-[7vw]"><span className="font-display text-[#f0957f]">CINESHELF</span><span>YOUR MOVIE COLLECTION</span></footer>
-      {isAddOpen && <MovieForm onSave={saveMovie} onClose={() => setIsAddOpen(false)} availableGenres={availableGenres} />}
-      {editingMovie && <MovieForm key={editingMovie.id} movie={editingMovie} onSave={saveMovie} onClose={() => setEditingMovie(null)} availableGenres={availableGenres} />}
+      {isAddOpen && <MovieForm onSave={saveMovie} onClose={() => setIsAddOpen(false)} />}
+      {editingMovie && <MovieForm key={editingMovie.id} movie={editingMovie} onSave={saveMovie} onClose={() => setEditingMovie(null)} />}
     </div>
   )
 }

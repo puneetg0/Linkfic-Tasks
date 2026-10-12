@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .auth_day13 import AuthBase, router as auth_router
 from .database import engine
+from .routes.admin import router as admin_router
 from .routes.movie import router as movie_router
 
 
@@ -31,4 +32,5 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(movie_router)
+app.include_router(admin_router)
 app.include_router(auth_router)

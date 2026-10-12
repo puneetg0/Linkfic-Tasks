@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import String, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
@@ -57,6 +57,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="user", server_default="user"
+    )
 
 
 class Credentials(BaseModel):
@@ -79,8 +82,11 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str
+    role: str
 
 
 def encode_part(value: bytes) -> str:
@@ -184,6 +190,17 @@ def get_current_user(
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         raise unauthorized
+    return user
+
+
+def require_admin(
+    user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access is required.",
+        )
     return user
 
 

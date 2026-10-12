@@ -53,6 +53,7 @@ function LoginForm({ onLogin }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [selectedRole, setSelectedRole] = useState('user')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -73,6 +74,14 @@ function LoginForm({ onLogin }) {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
+
+      const account = await apiRequest('/auth/me', result.access_token)
+      if (account.role !== selectedRole) {
+        throw new ApiError(
+          `This account has the ${account.role} role. Choose that role to sign in.`,
+          403,
+        )
+      }
       onLogin(result.access_token)
     } catch (requestError) {
       setError(requestError instanceof Error
@@ -118,6 +127,20 @@ function LoginForm({ onLogin }) {
           value={password}
         />
 
+        {mode === 'login' && (
+          <>
+            <label htmlFor="account-role">Sign in as</label>
+            <select
+              id="account-role"
+              onChange={(event) => setSelectedRole(event.target.value)}
+              value={selectedRole}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </>
+        )}
+
         {error && <p className="form-error" role="alert">{error}</p>}
 
         <button className="primary-button" disabled={isSubmitting} type="submit">
@@ -132,7 +155,8 @@ function LoginForm({ onLogin }) {
         {mode === 'login' ? 'New to CineShelf?' : 'Already have an account?'}
         <button
           onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login')
+            setMode((currentMode) => currentMode === 'login' ? 'register' : 'login')
+            setSelectedRole('user')
             setError('')
           }}
           type="button"
@@ -196,12 +220,171 @@ function AuthenticatedCineShelf({ accessToken, onLogout }) {
     )
   }
 
+  if (user.role === 'admin') {
+    return (
+      <AdminDashboard
+        accessToken={accessToken}
+        onLogout={onLogout}
+        user={user}
+      />
+    )
+  }
+
   return (
     <CineShelfApp
       accessToken={accessToken}
       onLogout={onLogout}
       user={user}
     />
+  )
+}
+
+function AdminDashboard({ accessToken, onLogout, user }) {
+  const [activeSection, setActiveSection] = useState('movies')
+  const [users, setUsers] = useState([])
+  const [movies, setMovies] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadAdminData() {
+      setIsLoading(true)
+      setError('')
+      try {
+        const [allUsers, allMovies] = await Promise.all([
+          apiRequest('/admin/users', accessToken, { signal: controller.signal }),
+          apiRequest('/admin/movies', accessToken, { signal: controller.signal }),
+        ])
+        setUsers(allUsers)
+        setMovies(allMovies)
+      } catch (requestError) {
+        if (requestError.name === 'AbortError') return
+        if (requestError.status === 401) {
+          onLogout()
+          return
+        }
+        setError(requestError.message)
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false)
+      }
+    }
+
+    loadAdminData()
+    return () => controller.abort()
+  }, [accessToken, onLogout, refreshKey])
+
+  return (
+    <div className="admin-shell">
+      <header className="admin-header">
+        <a className="admin-brand" href="#/dashboard">
+          <span className="admin-brand-mark">C</span>
+          <span>CINESHELF <small>ADMIN</small></span>
+        </a>
+        <div className="admin-account">
+          <span>{user.email}</span>
+          <button onClick={onLogout} type="button">Sign out</button>
+        </div>
+      </header>
+
+      <main className="admin-content">
+        <div className="admin-heading">
+          <div>
+            <p className="admin-eyebrow">CINESHELF MANAGEMENT</p>
+            <h1>Administrator dashboard</h1>
+            <p>Review registered accounts and every movie across all personal libraries.</p>
+          </div>
+          <button
+            className="admin-refresh"
+            disabled={isLoading}
+            onClick={() => setRefreshKey((value) => value + 1)}
+            type="button"
+          >
+            Refresh data
+          </button>
+        </div>
+
+        <div className="admin-stats">
+          <article><span>REGISTERED USERS</span><strong>{users.length}</strong></article>
+          <article><span>MOVIES ACROSS ALL LIBRARIES</span><strong>{movies.length}</strong></article>
+          <article><span>YOUR ROLE</span><strong>Admin</strong></article>
+        </div>
+
+        <section className="admin-panel">
+          <div className="admin-tabs" role="tablist" aria-label="Admin data">
+            <button
+              aria-selected={activeSection === 'movies'}
+              className={activeSection === 'movies' ? 'active' : ''}
+              onClick={() => setActiveSection('movies')}
+              role="tab"
+              type="button"
+            >
+              All movies ({movies.length})
+            </button>
+            <button
+              aria-selected={activeSection === 'users'}
+              className={activeSection === 'users' ? 'active' : ''}
+              onClick={() => setActiveSection('users')}
+              role="tab"
+              type="button"
+            >
+              All users ({users.length})
+            </button>
+          </div>
+
+          {error && <p className="admin-error" role="alert">{error}</p>}
+          {isLoading ? (
+            <p className="admin-message">Loading administrator data...</p>
+          ) : error ? null : activeSection === 'users' ? (
+            users.length === 0 ? (
+              <p className="admin-message">There are no registered users yet.</p>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <caption className="sr-only">All CineShelf user accounts</caption>
+                  <thead><tr><th scope="col">User ID</th><th scope="col">Email</th><th scope="col">Role</th></tr></thead>
+                  <tbody>
+                    {users.map((account) => (
+                      <tr key={account.id}>
+                        <td>{account.id}</td>
+                        <td>{account.email}</td>
+                        <td><span className={`role-badge ${account.role}`}>{account.role}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : movies.length === 0 ? (
+            <p className="admin-message">There are no movies in any library yet.</p>
+          ) : (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <caption className="sr-only">All movies across all CineShelf accounts</caption>
+                <thead>
+                  <tr><th scope="col">Title</th><th scope="col">Owner</th><th scope="col">Genre</th><th scope="col">Year</th><th scope="col">Rating</th><th scope="col">Status</th></tr>
+                </thead>
+                <tbody>
+                  {movies.map((movie) => (
+                    <tr key={movie.id}>
+                      <td>{movie.title}</td>
+                      <td>{movie.owner_email ?? 'Unassigned'}</td>
+                      <td>{movie.genre}</td>
+                      <td>{movie.release_year}</td>
+                      <td>{Number(movie.rating).toFixed(1)}</td>
+                      <td>{movie.watched ? 'Watched' : 'To watch'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+        <p className="admin-notice">Admin access is read-only. Movie changes remain in each user’s personal library.</p>
+      </main>
+    </div>
   )
 }
 

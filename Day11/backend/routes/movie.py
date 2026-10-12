@@ -1,4 +1,7 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,7 +34,7 @@ def get_genres(
 @router.get("/movies", response_model=list[Movie])
 def get_movies(
     search: str = Query(default="", max_length=120),
-    genre: str = Query(default=""),
+    genre: str = Query(default="", max_length=40),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[MovieDB]:
@@ -52,7 +55,7 @@ def get_movies(
 
 @router.get("/movies/{movie_id}", response_model=Movie)
 def get_movie(
-    movie_id: int,
+    movie_id: Annotated[int, Path(ge=1)],
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MovieDB:
@@ -82,7 +85,7 @@ def create_movie(
 
 @router.put("/movies/{movie_id}", response_model=Movie)
 def update_movie(
-    movie_id: int,
+    movie_id: Annotated[int, Path(ge=1)],
     movie_fields: MovieFields,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -104,7 +107,7 @@ def update_movie(
 
 @router.patch("/movies/{movie_id}/watched", response_model=Movie)
 def update_watched_status(
-    movie_id: int,
+    movie_id: Annotated[int, Path(ge=1)],
     update: WatchedUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -125,7 +128,7 @@ def update_watched_status(
 
 @router.delete("/movies/{movie_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_movie(
-    movie_id: int,
+    movie_id: Annotated[int, Path(ge=1)],
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Response:

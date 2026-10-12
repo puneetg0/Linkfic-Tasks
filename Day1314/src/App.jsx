@@ -5,10 +5,37 @@ import './App.css'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, fieldErrors = {}) {
     super(message)
     this.status = status
+    this.fieldErrors = fieldErrors
   }
+}
+
+const fieldLabels = {
+  email: 'Email address',
+  password: 'Password',
+  title: 'Movie title',
+  genre: 'Genre',
+  release_year: 'Release year',
+  rating: 'Rating',
+  poster_url: 'Poster URL',
+}
+
+function validationMessage(issue, field) {
+  const label = fieldLabels[field] ?? 'This value'
+  if (issue.type === 'missing') return `${label} is required.`
+  if (issue.type === 'string_too_short' && field === 'password') {
+    return 'Password must contain at least 8 characters.'
+  }
+  if (field === 'release_year') return 'Enter a year between 1888 and 2100.'
+  if (field === 'rating') return 'Enter a rating from 0 to 10.'
+  if (field === 'poster_url') return 'Enter a valid HTTP or HTTPS poster URL.'
+  if (field === 'email') return 'Enter a valid email address.'
+  if (field === 'title' || field === 'genre') {
+    return `${label} cannot be blank and must fit within the field limit.`
+  }
+  return `${label} is invalid. Please check your input.`
 }
 
 function currentRoute() {
@@ -38,11 +65,22 @@ async function apiRequest(path, accessToken, options = {}) {
 
   if (!response.ok) {
     const detail = result?.detail
-    const message = Array.isArray(detail)
-      ? detail.map((issue) => issue.msg).join(' ')
-      : typeof detail === 'string'
-        ? detail
-        : 'The request could not be completed.'
+    if (Array.isArray(detail)) {
+      const fieldErrors = {}
+      for (const issue of detail) {
+        const field = issue.loc?.at(-1)
+        if (typeof field === 'string' && fieldLabels[field]) {
+          fieldErrors[field] ??= validationMessage(issue, field)
+        }
+      }
+      const message = Object.values(fieldErrors).join(' ') || 'Please check the information and try again.'
+      throw new ApiError(message, response.status, fieldErrors)
+    }
+    const message = typeof detail === 'string'
+      ? detail
+      : response.status >= 500
+        ? 'CineShelf could not complete that request. Please try again.'
+        : 'The request could not be completed. Please check your information and try again.'
     throw new ApiError(message, response.status)
   }
 

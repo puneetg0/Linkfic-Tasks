@@ -172,6 +172,8 @@ body {
 .primary-button:disabled { cursor: wait; opacity: .7; }
 .primary-button span { font-size: 17px; }
 .form-error { color: #ff9d88; font-size: 12px; line-height: 1.5; }
+.field-error { color: #a43e31; font-size: 10px; font-weight: 600; line-height: 1.4; }
+.movie-form input[aria-invalid="true"] { border-color: #a43e31; }
 .mode-switch {
   display: flex;
   flex-wrap: wrap;

@@ -231,6 +231,137 @@ Day15/
   migrate_day15.py      Day 15 database role migration
   set_user_role.py      Trusted command to promote/demote an account
 ```
+## Concepts + DSA Practice
+CineShelf movie collection project. For the DSA problems, we'll use simple Python for loops and if conditions so you can understand the logic before learning advanced techniques.
+
+
+**1. Authentication vs. Authorization**
+These two terms sound similar, but they have different purposes.
+Authentication — Who are you?
+Authentication checks whether you are the person you claim to be.
+Example: You enter your email and password to log in to CineShelf.
+Question: Are you logged in as a valid user?
+
+
+Authorization — What are you allowed to do?
+Authorization checks what actions you are permitted to perform.
+Example: A regular user can edit their own movies, but only an admin can access the admin dashboard.
+Question: Do you have permission to perform this action?
+
+
+Remember it like this:
+- Authentication = identity.
+- Authorization = permission.
+
+- 
+**2. Why is JWT widely used?**
+JWT stands for JSON Web Token. It is a compact token that can carry information about a user's identity and other claims.
+For example, after a successful login, your FastAPI backend can issue a JWT. React can send that token with later API requests.
+The process looks like this:
+1. User logs in
+Email + password
+
+2. FastAPI verifies credentials
+Returns a signed JWT if valid
+
+3. React sends the token
+With protected API requests
+
+4. FastAPI verifies the token
+Checks identity and permissions
+
+
+Why developers use JWT:
+- It lets the backend verify signed claims without looking up a server-side session for every request.
+- It works well with React frontends and FastAPI APIs.
+- It can include an expiration time.
+- It can carry claims such as a user ID and role.
+Important: JWT payloads are generally readable, not secret. Never put passwords in them. A signed JWT is also not automatically encrypted or revocable.
+
+**3. Protected Routes**
+A protected route is a page that requires the user to meet certain conditions before accessing it.
+Examples in CineShelf:
+Route	Who can access it?
+/login	Everyone
+/movies	Logged-in users
+/admin	Logged-in admins only
+If a logged-out user tries to open /movies, React can redirect them to /login.
+However, frontend protection alone is not security. FastAPI must also verify the token and permissions before returning private data or performing an action.
+
+**4. API Security**
+API security means protecting your backend endpoints from unauthorized access and misuse.
+Suppose CineShelf has this endpoint:
+DELETE /movies/10
+Before deleting movie 10, your backend should check:
+1. Is the request authenticated with a valid token?
+2. Does movie 10 exist?
+3. Does the movie belong to the current user, or does the user have an explicitly authorized admin permission?
+4. Is the requested action allowed?
+If another user owns that movie, the request must not delete it.
+Other important security practices include password hashing, input validation, HTTPS, appropriate CORS settings, and avoiding the exposure of private user data.
+
+**5. Session vs. Token Authentication**
+Session authentication	Token authentication
+Server stores session information.	Client sends a token with requests.
+Browser commonly sends a session cookie.	Often uses a bearer token or a cookie.
+Server can invalidate a session centrally.	Revoking a self-contained JWT generally needs extra mechanisms.
+Common in traditional web applications.	Common in APIs and distributed applications.
+Both approaches can be secure when implemented properly. JWT is not automatically better than sessions.
+For CineShelf, since you already use JWT, continue with your existing approach and focus on secure token verification and ownership checks.
+Part 2: Python / Backend Practice
+
+**6. Password Hashing Basics**
+When a user creates a CineShelf account, you should never store their actual password directly in your database.
+Instead, store a password hash.
+For example:
+- User enters password: movie123
+- Backend hashes the password using a secure password-hashing algorithm.
+- Database stores the hash instead of the original password.
+- During login, the backend verifies the entered password against the stored hash.
+A common beginner-friendly option is Argon2, or bcrypt. Here is an example using Argon2.
+Install the library:
+pip install "pwdlib[argon2]"
+
+
+Example:
+from pwdlib import PasswordHashpassword_hash = PasswordHash.recommended()# Signup: hash the passwordpassword = "movie123"hashed_password = password_hash.hash(password)print("Stored hash:", hashed_password)# Login: verify the passwordentered_password = "movie123"if password_hash.verify(entered_password, hashed_password):    print("Login successful")else:    print("Invalid password")
+
+
+
+Understand the code:
+- PasswordHash.recommended() creates a password hasher with recommended settings.
+- .hash(password) creates a secure password hash.
+- .verify() checks whether the entered password matches the stored hash.
+You don't decrypt a password hash during login. You verify the password instead.
+In your project, store hashed_password in the database, never the original password.
+7. Dictionary Lookup Optimization
+A Python dictionary stores information as key-value pairs.
+Suppose you want to find a movie's rating using its ID.
+movie_ratings = {    101: 8.5,    102: 7.9,    103: 9.0,    104: 8.2}movie_id = 103if movie_id in movie_ratings:    print(movie_ratings[movie_id])else:    print("Movie not found")
+
+
+
+Output:
+9.0
+
+
+Why use a dictionary?
+- Searching through a list may require checking many items one by one.
+- A dictionary typically finds a key in O(1) average time.
+- This can make lookups faster when you have many records.
+For example, a dictionary can help find a movie by ID. In a real database-backed CineShelf application, you would generally query the database rather than load every movie into a Python dictionary.
+Part 3: Frontend / React Practice
+## 8. Protected Routes
+A protected route prevents users from accessing certain pages unless they meet the required conditions.
+For example, in CineShelf:
+- /login — accessible to everyone.
+- /movies — accessible to authenticated users.
+- /admin — accessible only to admins.
+React checks the user's authentication state and redirects them when necessary. FastAPI independently verifies authentication and authorization for each protected API request.
+Why is authentication important?
+Authentication helps your application identify users so it can protect private information, associate movie records with the correct accounts, and restrict actions to the appropriate people.
+Without authentication, anyone might be able to access information that should be private.
+
 
 ## What I learned
 

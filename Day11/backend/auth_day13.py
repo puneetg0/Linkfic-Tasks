@@ -113,16 +113,29 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    algorithm, iterations_text, salt_text, digest_text = stored_hash.split("$")
-    if algorithm != "pbkdf2_sha256":
+    try:
+        algorithm, iterations_text, salt_text, digest_text = stored_hash.split("$")
+        if algorithm != "pbkdf2_sha256":
+            return False
+
+        iterations = int(iterations_text)
+        salt = decode_part(salt_text)
+        expected_digest = decode_part(digest_text)
+    except (ValueError, UnicodeError):
         return False
 
-    expected_digest = decode_part(digest_text)
+    if (
+        iterations <= 0
+        or len(salt) != 16
+        or len(expected_digest) != hashlib.sha256().digest_size
+    ):
+        return False
+
     actual_digest = hashlib.pbkdf2_hmac(
         "sha256",
         password.encode("utf-8"),
-        decode_part(salt_text),
-        int(iterations_text),
+        salt,
+        iterations,
     )
     return hmac.compare_digest(actual_digest, expected_digest)
 

@@ -1,0 +1,319 @@
+{
+  "info": {
+    "name": "CineShelf - Day 17 API debugging practice",
+    "description": "A safe local workflow for checking health, creating a test account, logging in, validating movie requests, and cleaning up a test movie. Use a local development database and a test account only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "test_email",
+      "value": ""
+    },
+    {
+      "key": "test_password",
+      "value": ""
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "movie_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Check API health",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API is healthy', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Register a test account (run once)",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Test account was created', function () {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(pm.response.json().role).to.eql('user');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Log in and save the bearer token",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login returns a bearer token', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.token_type).to.eql('bearer');",
+              "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+              "    pm.collectionVariables.set('access_token', body.access_token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Check the signed-in account",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Bearer token identifies the test account', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('test_email'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. List this account's movies",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/movies"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Movie list is returned as an array', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Send invalid movie data (expect 422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \" \",\n  \"genre\": \"Drama\",\n  \"release_year\": 2020,\n  \"rating\": 12,\n  \"watched\": false,\n  \"poster_url\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/movies"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API rejects invalid movie fields', function () {",
+              "    pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Create a valid test movie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Day 17 Debugging Practice\",\n  \"genre\": \"Learning\",\n  \"release_year\": 2020,\n  \"rating\": 8,\n  \"watched\": false,\n  \"poster_url\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/movies"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Valid movie is created', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.title).to.eql('Day 17 Debugging Practice');",
+              "    pm.expect(body.id).to.be.a('number');",
+              "    pm.collectionVariables.set('movie_id', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Mark the test movie as watched",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"watched\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/movies/{{movie_id}}/watched"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Watched status is updated', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().watched).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Delete the test movie (cleanup)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/movies/{{movie_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Test movie is deleted', function () {",
+              "    pm.response.to.have.status(204);",
+              "    pm.collectionVariables.unset('movie_id');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

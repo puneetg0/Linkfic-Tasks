@@ -1,0 +1,342 @@
+# Day 17 - Debugging and Testing
+
+## Objective
+
+The objective of Day 17 is to learn how to find and fix errors in a full-stack
+application. We will debug Python code, test CineShelf's FastAPI endpoints with
+Postman, check the React frontend in a browser, fix and retest an existing bug,
+and practice two DSA problems.
+
+This guide uses the CineShelf API in `../Day11/backend` and the runnable React
+frontend in `../Day16`. Follow the steps in order; each step explains what
+we're doing and why.
+
+## Tasks Assigned
+
+1. Learn basic debugging techniques.
+2. Debug an existing issue in the application.
+3. Test backend APIs using Postman.
+4. Test frontend functionality in the browser.
+5. Fix identified bugs and verify the fix.
+6. Document the issue and its solution.
+7. Practice Binary Search and Find Missing Number.
+8. Review the Day 17 files before updating GitHub.
+
+## Before You Start
+
+Use a **local development database**, not production. Make a test account and
+use movie data that is safe to delete. Never share `.env` files, database
+credentials, passwords, or real access tokens.
+
+The backend needs its usual Day 11 setup: dependencies installed from
+`../Day11/backend/requirements.txt`, a local database configured in
+`../Day11/backend/.env`, and a `JWT_SECRET_KEY` set in the terminal. Start the
+API in PowerShell:
+
+```powershell
+Set-Location 'C:\Users\SPURG\Desktop\Linkfic Tasks\Day11'
+$bytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$env:JWT_SECRET_KEY = [Convert]::ToBase64String($bytes)
+.\backend\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000
+```
+
+Keep this terminal open. The interactive API documentation is at
+`http://localhost:8000/docs`. If this is a fresh local database, follow the
+migration instructions in the [Day 16 guide](../Day16/README.MD) first.
+Do not run migrations against a production database for this exercise.
+
+## 1. Debugging Techniques
+
+Debugging means finding out why a program behaves differently from what we
+expect, then correcting the cause.
+
+If CineShelf does not display a movie after adding it, check the app in order:
+
+1. Did the React form send the correct data?
+2. Did FastAPI receive the request, and what status did it return?
+3. Did the API save the movie?
+4. Did React refresh or update the movie list after success?
+
+This order follows the request from the browser to the backend and back. It
+helps narrow down which part needs attention.
+
+### Reading Error Messages
+
+When an error appears, read it rather than guessing. Look for:
+
+- **Error type:** for example, `ValueError` means a value could not be used
+  in the expected way.
+- **File and line:** find the last traceback line that points to your code.
+- **Operation:** identify what your code was trying to do at that line.
+- **Input:** check which value caused that operation to fail.
+
+For example:
+
+```python
+number = int("abc")
+```
+
+This raises `ValueError` because `"abc"` is not a number. A small fix is to
+handle that expected input error:
+
+```python
+try:
+    number = int(input("Enter a number: "))
+    print(number)
+except ValueError:
+    print("Please enter a valid number.")
+```
+
+For any bug, write down: what action triggers it, what you expected, what
+actually happened, where the error points, and whether a small repeatable test
+can reproduce it.
+
+## 2. Debugging Python Functions
+
+A program can run without errors and still produce the wrong answer. This is
+a **logic error**.
+
+Here is an example:
+
+```python
+def calculate_total(price, quantity):
+    return price + quantity
+
+print(calculate_total(100, 3))
+```
+
+The result is `103`, but the expected total is `300`: the price must be
+multiplied by the quantity. The corrected version is:
+
+```python
+def calculate_total(price, quantity):
+    return price * quantity
+
+print(calculate_total(100, 3))
+```
+
+Output:
+
+```text
+300
+```
+
+Always compare a function's result with the expected result. "It did not
+crash" does not necessarily mean "it is correct."
+
+### Day 17 bug: malformed password hash
+
+The real CineShelf issue we investigated is in
+`../Day11/backend/auth_day13.py`, in `verify_password`. Login expects the
+stored password hash to have four `$`-separated parts. Before the fix, a
+damaged hash or a non-numeric iteration count could raise `ValueError` and
+interrupt the login request.
+
+The fix checks that the hash parts, iteration count, salt, and digest are
+valid before checking a password. An invalid hash returns `False`, so the
+existing login route responds with `401 Unauthorized` instead of crashing.
+The complete issue, reproduction details, cause, and fix are recorded in
+[BUG_REPORT.md](./BUG_REPORT.md).
+
+Run the regression tests from the project folder:
+
+```powershell
+.\Day11\backend\.venv\Scripts\python.exe -m unittest discover -s .\Day17 -p "test_*.py"
+```
+
+The test uses a fake user in memory. It does not modify the database or
+damage a real account. A successful run ends with `OK`.
+
+## 3. Testing APIs Using Postman
+
+Postman sends requests directly to the backend and shows the response. This
+helps us test the API separately from React, including checking that the
+backend rejects invalid input even when the browser form is bypassed.
+
+### CineShelf API examples
+
+| Test | Example request | Expected result |
+| --- | --- | --- |
+| Check the API | `GET /health` | `200 OK` and `{"status":"ok"}` |
+| Sign in | `POST /auth/login` | `200 OK` and an access token |
+| Check signed-in account | `GET /auth/me` | `200 OK` and the account details |
+| List movies | `GET /movies` | `200 OK` and the signed-in user's movies |
+| Add a valid movie | `POST /movies` | `201 Created` and the new movie |
+| Send invalid movie data | `POST /movies` | `422 Unprocessable Entity` |
+| Access a protected route without a token | `GET /movies` | `401 Unauthorized` |
+| Request an unknown movie | `GET /movies/999999` | `404 Not Found` |
+
+The API validates invalid movie fields with `422` (not `400`). A `500`
+response means an unexpected server error occurred and should be investigated
+using the backend terminal traceback.
+
+### Basic Postman Workflow
+
+1. Start the local FastAPI backend using **Before You Start**.
+2. Import [CineShelf-Day17.postman_collection.json](./CineShelf-Day17.postman_collection.json)
+   into Postman.
+3. Open the collection variables. Set `test_email` to a new test email and
+   `test_password` to a throwaway password with at least eight characters.
+   Change `base_url` only if your API is running at a different local address.
+4. Send **1. Check API health**. Confirm the status is `200` and the body says
+   `{"status":"ok"}`.
+5. Send **2. Register a test account** once. If it already exists, skip
+   registration and sign in instead.
+6. Send **3. Log in and save the bearer token**. The collection stores this
+   temporary token for the later protected requests.
+7. Send **4. Check the signed-in account** and **5. List this account's
+   movies**. The token should be included automatically.
+8. Send **6. Send invalid movie data**. Confirm the API rejects it with `422`.
+9. Send **7. Create a valid test movie** and **8. Mark the test movie as
+   watched**. The collection stores the movie ID for you.
+10. Send **9. Delete the test movie (cleanup)**. Confirm `204`; this means it
+    was deleted successfully and there is no response body.
+
+Do not add a real password or production token to a shared Postman collection.
+
+### Common HTTP Status Codes
+
+- `200 OK`: the request succeeded.
+- `201 Created`: a new resource was created.
+- `204 No Content`: the request succeeded and has no response body.
+- `400 Bad Request`: the request cannot be processed as sent.
+- `401 Unauthorized`: authentication is missing or invalid.
+- `403 Forbidden`: the signed-in account is not allowed to perform this action.
+- `404 Not Found`: the requested resource was not found or is not visible.
+- `422 Unprocessable Entity`: request data did not pass FastAPI validation.
+- `500 Internal Server Error`: an unexpected backend error occurred.
+
+## 4. Testing and Debugging React
+
+Start the Day 16 frontend in a second PowerShell terminal:
+
+```powershell
+Set-Location 'C:\Users\SPURG\Desktop\Linkfic Tasks\Day16'
+npm install
+npm run dev
+```
+
+Open the local Vite URL printed in the terminal, usually
+`http://localhost:5173`. Sign in using your test account.
+
+### Browser Developer Tools
+
+Press **F12** to open Developer Tools.
+
+**Console** shows JavaScript errors. The line and stack trace help identify
+which part of the frontend was running when something went wrong.
+
+**Network** shows requests made by React to FastAPI. Select a request and
+check its URL, method, request payload, status code, and response body.
+
+For example, when the movie list looks empty, check whether the API returned
+an empty array or whether the frontend had trouble handling its response.
+Red text is a clue; check what file or request it points to before deciding
+what caused the problem.
+
+### React Functionality Checklist
+
+- Signup and login work with valid test data.
+- Invalid movie form data shows a useful message.
+- A valid movie can be added, viewed, edited, and deleted.
+- Watched and unwatched status updates correctly.
+- Logged-out users cannot access the signed-in dashboard.
+- A user sees and manages only their own movie data.
+- Logout returns to sign-in and clears the in-memory session.
+
+Try submitting a blank movie title first. The browser should show a
+validation message without sending a movie request. Then add a valid test
+movie and inspect the `POST /movies` request in Network.
+
+### Try a VS Code Debugger Breakpoint
+
+Select the Python interpreter from `Day11/backend/.venv` in VS Code. Open
+`Day17/test_day17.py` and set a breakpoint on the `login(` line inside
+`test_malformed_hash_is_reported_as_an_invalid_login`. Choose **Run and
+Debug** and start the current Python file. When execution pauses, press
+**F11** to step into the login handler and `verify_password`. Inspect the
+Variables panel and use **F10** to step over lines. Step out to see the login
+handler reject the malformed hash with HTTP `401`. Remove the breakpoint
+when finished.
+
+## 5. Example Bug Report
+
+Document what you observed and verify the fix before marking an issue as
+resolved.
+
+| Field | Day 17 result |
+| --- | --- |
+| Bug title | Malformed password hash interrupts login |
+| Issue | A damaged stored password hash could raise `ValueError` while signing in. |
+| Steps to reproduce | Pass a malformed stored hash, such as `not-a-password-hash`, to the password verifier or the login regression test. |
+| Expected result | Login rejects the credentials with `401 Unauthorized`. |
+| Actual result before fix | Hash parsing raised an uncaught `ValueError`, which could result in HTTP `500`. |
+| Root cause | The verifier assumed every stored hash had the expected format. |
+| Fix | Validate the algorithm, number of fields, iteration count, salt, and digest before verifying the password. Return `False` for malformed data. |
+| Retest result | Passed. Regression tests confirm malformed hashes are rejected and login returns `401`. |
+
+More detailed reproduction notes are in [BUG_REPORT.md](./BUG_REPORT.md).
+
+## 6. DSA / Coding Practice
+
+The runnable examples are in [dsapractice.py](./dsapractice.py).
+Their tests run along with the other Day 17 checks:
+
+```powershell
+.\Day11\backend\.venv\Scripts\python.exe -m unittest discover -s .\Day17 -p "test_*.py"
+```
+
+### Binary Search
+
+Binary search finds a value in a **sorted** list. It checks the middle value.
+If the target is larger, it ignores the lower half; if the target is smaller,
+it ignores the upper half. It repeats until it finds the value or no search
+area remains.
+
+```python
+binary_search([2, 4, 6, 8, 10], 6)  # returns index 2
+binary_search([2, 4, 6, 8, 10], 7)  # returns None
+```
+
+Each comparison cuts the search area roughly in half, so time complexity is
+`O(log n)`. The input must already be sorted.
+
+### Find Missing Number
+
+The input contains unique numbers from `1` to `n + 1`, with one number
+missing. Compare the expected sum of that range with the sum of the numbers
+that are present.
+
+```python
+find_missing_number([1, 2, 4, 5])  # returns 3
+```
+
+The implementation uses `O(n)` time and `O(1)` extra space. The input must
+follow the stated rule: one missing number, no duplicates, and values from
+`1` through `n + 1`.
+
+## 7. Learning Resources
+
+Choose beginner-friendly videos for the topics you want to practise:
+
+- [FastAPI testing for beginners](https://www.youtube.com/results?search_query=FastAPI+testing+for+beginners)
+- [Postman API testing tutorial](https://www.youtube.com/results?search_query=Postman+API+testing+tutorial+for+beginners)
+- [React debugging and browser DevTools](https://www.youtube.com/results?search_query=React+debugging+browser+DevTools+beginner)
+- [VS Code Python debugger](https://www.youtube.com/results?search_query=VS+Code+Python+debugger+beginner)
+- [Binary search and missing-number problems](https://www.youtube.com/results?search_query=Python+binary+search+find+missing+number+beginner)
+
+Recommended channels: [Tech With Tim](https://www.youtube.com/results?search_query=Tech+With+Tim),
+[Traversy Media](https://www.youtube.com/results?search_query=Traversy+Media),
+and [freeCodeCamp](https://www.youtube.com/results?search_query=freeCodeCamp).
+
+## Day 17 Deliverables
+
+- **Bug report:** [BUG_REPORT.md](./BUG_REPORT.md)
+- **Fixed issue:** malformed stored password hashes no longer crash login.
+- **Postman tests:** [CineShelf-Day17.postman_collection.json](./CineShelf-Day17.postman_collection.json)
+- **Automated tests:** [test_day17.py](./test_day17.py)
+- **DSA practice:** [dsapractice.py](./dsapractice.py)
+- **GitHub:** review the Day 17 changes, then commit and push them using your
+  normal Git workflow.

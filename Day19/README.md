@@ -8,10 +8,7 @@
 ## 1. Objective
 
 The objective of Day 19 is to understand how full-stack applications are prepared for deployment in a production environment.
-
-During this task, I will learn Docker fundamentals, understand the difference between containers and virtual machines, create a basic Dockerfile for the FastAPI backend, explore deployment platforms, and understand environment variables and the React production build process.
-
-I will also practice Kadane's Algorithm to improve problem-solving skills using Python.
+Docker fundamentals, containers vs. virtual machines, and create a basic Dockerfile for the FastAPI backend. Understand environment variables, production vs. development environments, the React build process, and deployment workflows for full-stack applications. Research free deployment platforms and practice Kadane’s Algorithm to solve the Maximum Subarray problem using Python.
 
 ---
 

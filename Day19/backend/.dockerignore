@@ -1,0 +1,26 @@
+# Don't copy these into the Docker image
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment files (secrets — never bake into the image!)
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Editor files
+.vscode/
+.idea/
+*.code-workspace

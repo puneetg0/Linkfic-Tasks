@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────
+#  CineShelf – Docker Compose
+#  Runs backend + frontend together locally
+# ─────────────────────────────────────────────
+#
+#  Usage:
+#    docker compose up --build      ← first time
+#    docker compose up              ← subsequent runs
+#    docker compose down            ← stop everything
+#
+# ─────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI Backend ──────────────────────
+  backend:
+    build: ./backend
+    container_name: cineshelf-backend
+    ports:
+      - "8000:8000"       # host:container
+    environment:
+      # These override / replace your .env file inside the container.
+      # For local dev, paste real values here or use a .env file.
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+    restart: unless-stopped
+
+  # ── React + Vite Frontend ────────────────
+  frontend:
+    build: ./frontend
+    container_name: cineshelf-frontend
+    ports:
+      - "3000:80"         # Nginx serves on 80 inside, mapped to 3000 on host
+    depends_on:
+      - backend           # Start backend first
+    restart: unless-stopped

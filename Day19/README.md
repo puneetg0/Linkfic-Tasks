@@ -1,7 +1,5 @@
 # Day 19 – Docker, Containerization, Deployment & DSA
 
-**Internship:** Python Full Stack Developer Internship
-**Project:** CineShelf – Movie Collection Management Application
 **Day:** 19
 **Focus:** Docker, FastAPI Deployment, Environment Variables, React Production Build, and DSA
 

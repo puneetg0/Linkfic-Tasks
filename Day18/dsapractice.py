@@ -28,14 +28,16 @@ print(merge_sorted_arrays(arr1, arr2))
 def find_duplicates(numbers):
     seen = set()
     duplicates = set()
+    result = []
 
     for number in numbers:
-        if number in seen:
+        if number in seen and number not in duplicates:
             duplicates.add(number)
+            result.append(number)
         else:
             seen.add(number)
 
-    return sorted(duplicates)
+    return result
 
 
 numbers = [1, 2, 3, 2, 4, 5, 1, 6]

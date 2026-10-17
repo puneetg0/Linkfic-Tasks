@@ -38,6 +38,7 @@ if len(JWT_SECRET_KEY) < 32:
 
 ACCESS_TOKEN_MINUTES = 30
 PASSWORD_HASH_ITERATIONS = 600_000
+MAX_PASSWORD_HASH_ITERATIONS = 1_000_000
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 unauthorized = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -125,7 +126,8 @@ def verify_password(password: str, stored_hash: str) -> bool:
         return False
 
     if (
-        iterations <= 0
+        iterations < PASSWORD_HASH_ITERATIONS
+        or iterations > MAX_PASSWORD_HASH_ITERATIONS
         or len(salt) != 16
         or len(expected_digest) != hashlib.sha256().digest_size
     ):

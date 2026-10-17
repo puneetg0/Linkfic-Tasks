@@ -1,546 +1,262 @@
-# CineShelf - Day 18: Code Refactoring and Clean Code Practices
+# CineShelf
 
-## Introduction
+## Overview
 
-Day 18 focuses on improving the CineShelf movie management application through code refactoring, clean code principles, and better project organization.
+CineShelf is a movie-library application for people who want to keep track of the films they plan to watch and the films they have already seen. Users can create an account, manage their personal collection, search and filter movies, and track watched status. Administrators have read-only pages for viewing registered users and movies across the application.
 
-The objective is to make the application easier to read, understand, test, and maintain without changing its existing functionality.
+This repository folder contains the application source. It is a learning project and is not yet certified or configured for a public production release. See [Known Issues](#known-issues) before deployment.
 
-The existing movie library, user registration and sign-in, role-based admin view, and FastAPI API are kept together in a self-contained project instead of depending on source files from earlier day folders.
+## Features
 
-This task also covers reusable React components, FastAPI module organization, meaningful naming, unused code removal, basic time complexity, and Python DSA practice.
+- User registration and sign-in with email and password.
+- Protected API resources using short-lived bearer tokens.
+- Personal movie library with add, view, edit, watched-status update, and delete operations.
+- Search by movie title and filter by genre.
+- Server-side validation for movie fields and account credentials.
+- User-specific movie access enforced by the API.
+- Read-only administrator views for users and all movies.
+- Responsive React interface for sign-in, library, and administration.
+- Interactive API exploration through FastAPI Swagger UI.
 
-## 1. What Changed
+## Technology Stack
 
-- Grouped the React application by feature and moved the reusable `MovieCard` component into `frontend/src/components`.
-- Kept authentication, the movie library, and shared styles inside the standalone frontend application.
-- Removed the cross-day Vite alias so the frontend no longer imports source files from earlier day folders.
-- Grouped FastAPI modules under `backend/app`, with separate `routes`, `models`, and `schemas` packages.
-- Renamed `auth_day13.py` to `auth.py` and updated the related imports.
-- Excluded generated files, local databases, virtual environments, and secrets from the deliverable.
-- Added `backend/.env.example` to document the required environment settings.
-- Added reusable DSA functions for merging sorted arrays and finding repeated values.
-- Added tests for the DSA functions, including empty inputs, duplicate values, and equal elements.
+| Area | Technology |
+|---|---|
+| Frontend | React 19, Vite 8, Tailwind CSS 4 |
+| Backend | Python 3.12, FastAPI, Pydantic, Uvicorn |
+| Database | PostgreSQL, SQLAlchemy 2, psycopg 3 |
+| Authentication | Signed HS256 bearer tokens; PBKDF2-SHA256 password hashing |
+| Containerization | Docker, Docker Compose, Nginx |
+| Testing | pytest, FastAPI TestClient, SQLite test database, Oxlint |
 
-## 2. Project Structure
+## Architecture
+
+The React application runs in the user's browser. It sends HTTP requests with JSON data to the FastAPI backend. For requests that need an account, the frontend includes the signed-in user's bearer token in the `Authorization` header.
+
+FastAPI validates incoming data, verifies the token and the user's role, and uses SQLAlchemy to read or update PostgreSQL. Each movie has an owner ID. The API uses that ID to limit regular users to their own movies; administrator endpoints separately allow authorized administrators to view all users and movies.
+
+Passwords are stored as PBKDF2-SHA256 hashes, not as readable passwords. Access tokens expire after 30 minutes. The frontend currently keeps the token in memory, so a full page reload requires the user to sign in again.
+
+## Project Structure
 
 ```text
 Day18/
 ├── backend/
-│   ├── .env.example
-│   ├── requirements.txt
-│   └── app/
-│       ├── auth.py
-│       ├── database.py
-│       ├── main.py
-│       ├── models/
-│       ├── routes/
-│       └── schemas/
+│   ├── app/
+│   │   ├── auth.py              # Registration, password hashes, tokens, access checks
+│   │   ├── database.py          # SQLAlchemy engine and request-scoped sessions
+│   │   ├── main.py              # FastAPI app, CORS, health check, router setup
+│   │   ├── models/
+│   │   │   └── db_models.py     # SQLAlchemy database tables
+│   │   ├── routes/
+│   │   │   ├── movie.py         # Personal movie and genre endpoints
+│   │   │   └── admin.py         # Administrator read-only endpoints
+│   │   └── schemas/
+│   │       ├── movie.py         # Movie input validation and response schema
+│   │       └── admin.py         # Administrator response schemas
+│   ├── Dockerfile
+│   ├── requirements.txt         # Runtime dependencies
+│   ├── requirements-dev.txt     # Runtime plus test dependencies
+│   └── .env.example             # Safe backend configuration template
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── features/library/
-│   │   └── styles/
+│   │   ├── App.jsx              # Sign-in and administrator screens
+│   │   ├── components/          # Reusable interface components
+│   │   ├── features/library/    # Personal movie library
+│   │   └── styles/              # Shared, authentication, and library styles
+│   ├── Dockerfile
+│   ├── nginx.conf               # Production static-file server
 │   ├── package.json
-│   └── vite.config.js
+│   └── .env.example             # Frontend API URL template
 ├── tests/
-└── dsapractice.py
+│   ├── conftest.py              # Test import path setup
+│   ├── test_api.py              # API regression tests
+│   └── test_practice.py         # Python practice tests
+├── docs/
+│   └── API.md                   # API endpoint and request reference
+└── dsapractice.py               # Earlier Python practice problems
 ```
 
-### Understanding the structure
+The Docker Compose file for this application is in [`../Day21/docker-compose.yml`](../Day21/docker-compose.yml), and the Day 21 release-preparation notes are in [`../Day21/README.md`](../Day21/README.md).
 
-**Backend:** Contains the FastAPI application, authentication logic, database configuration, routes, models, and validation schemas.
+## Prerequisites
 
-**Frontend:** Contains the React application, reusable components, movie library feature, and shared styles.
+- Python 3.12.
+- Node.js 20.19 or newer (or 22.12 or newer), and npm.
+- PostgreSQL 14 or newer, available to the backend.
+- Git.
+- Docker Desktop with its Linux container engine running, if using Docker.
 
-**Tests:** Contains automated tests for verifying application logic, including the DSA functions.
+## Installation and Setup
 
-**dsapractice.py:** Contains reusable Python implementations of the day's DSA problems.
+### 1. Clone the repository
 
-**.env.example:** Documents the environment variables required to configure the application without exposing real credentials.
-
-Organizing files by responsibility makes it easier to locate code, understand dependencies, and maintain individual parts of the project.
-
-## 3. Clean Code Principles
-
-Clean code is code that is easy to read, understand, test, and modify. It reduces unnecessary complexity and helps developers identify the purpose of a function or module quickly.
-
-### Meaningful naming
-
-Variables, functions, and modules should have names that clearly describe their purpose.
-
-For example:
-
-```python
-def calc(a, b):
-    return a + b
+```bash
+git clone https://github.com/puneetg0/Linkfic-Tasks.git
 ```
 
-A more descriptive version is:
-
-```python
-def calculate_total(price, tax):
-    return price + tax
-```
-
-The second version makes the purpose of the function and its parameters easier to understand.
-
-In CineShelf, names such as `get_movies`, `create_movie`, and `find_duplicates` communicate their purpose more clearly than generic names such as `get_data`, `process`, or `temp`.
-
-### Single responsibility
-
-A module or function should have a clear, focused responsibility.
-
-For example, a React component should primarily handle its UI responsibilities, while reusable API request logic can be placed in a service module.
-
-Similarly, FastAPI routes should handle HTTP requests and responses, while database access and business logic can be separated when the project benefits from that separation.
-
-This makes individual parts easier to understand, test, and modify.
-
-### Avoiding unnecessary complexity
-
-Code should solve the problem directly without adding unnecessary abstractions or complicated logic.
-
-Refactoring does not mean rewriting everything. It means improving the existing implementation while preserving its expected behavior.
-
-## 4. Code Reusability
-
-Code reusability means creating functions, components, or modules that can be used in multiple places instead of duplicating the same logic.
-
-Repeated code increases maintenance effort because the same change may need to be applied in several locations.
-
-For example, a reusable React component can provide a consistent movie card throughout the application.
-
-```jsx
-function MovieCard({ movie }) {
-  return (
-    <article className="movie-card">
-      <h3>{movie.title}</h3>
-      <p>{movie.genre}</p>
-    </article>
-  );
-}
-
-export default MovieCard;
-```
-
-The component can be used wherever a movie card is required:
-
-```jsx
-{movies.map((movie) => (
-  <MovieCard key={movie.id} movie={movie} />
-))}
-```
-
-This example illustrates component reuse. The actual CineShelf component should retain its existing fields, styling, and functionality.
-
-Reusability improves consistency and reduces duplicated code, making future changes easier to manage.
-
-## 5. React Component Organization
-
-React applications become harder to maintain when every page, API request, and UI element is placed in one large file.
-
-Organizing the application by feature and responsibility helps developers locate components and understand how different parts interact.
-
-In CineShelf, the reusable `MovieCard` is placed in `frontend/src/components`, while the movie library remains grouped under `frontend/src/features/library`.
-
-This organization separates shared UI elements from feature-specific functionality.
-
-### Benefits of component organization
-
-- Reusable components can be shared across multiple screens.
-- Feature-specific code stays together.
-- Changes become easier to locate.
-- Components become easier to test and review.
-- New developers can understand the project structure more quickly.
-
-The aim is to create a structure that supports the application's current needs without introducing unnecessary folders.
-
-## 6. FastAPI Project Structure
-
-FastAPI applications are easier to maintain when routes, database configuration, models, and validation schemas have clearly defined responsibilities.
-
-In CineShelf, the backend modules are organized under `backend/app`.
-
-### main.py
-
-Creates the FastAPI application and registers the necessary routers.
-
-### database.py
-
-Manages database configuration, connections, and session setup.
-
-### models/
-
-Contains database models that represent application data and database tables.
-
-### routes/
-
-Contains API endpoints responsible for handling incoming requests and returning responses.
-
-### schemas/
-
-Contains Pydantic models for validating request data and defining response structures.
-
-### auth.py
-
-Contains authentication-related functionality that was previously associated with the day-specific `auth_day13.py` module.
-
-This structure helps keep related functionality together and reduces unnecessary coupling between modules.
-
-When refactoring backend code, existing endpoints, authentication behavior, database relationships, and response formats should continue to work as expected.
-
-## 7. Removing Unused Code and Files
-
-Unused code can make a project harder to understand and maintain.
-
-Examples include unused imports, variables, outdated functions, duplicate implementations, and files that are no longer referenced.
-
-Before removing a file, its imports, references, routes, configuration dependencies, and tests should be checked.
-
-In CineShelf, generated files, local databases, virtual environments, and secrets are excluded from the deliverable so that the project contains the source code and configuration examples needed for development.
-
-Removing unnecessary files and cross-day dependencies makes the project more self-contained.
-
-## 8. Code Reviews and Maintainability
-
-A code review involves examining code changes to identify potential bugs, improve readability, and ensure that the implementation follows the project's requirements.
-
-Code reviews help developers identify:
-
-- Unclear variable and function names.
-- Repeated logic that could be reused.
-- Incorrect module responsibilities.
-- Missing error handling or validation.
-- Changes that unintentionally break existing features.
-- Important edge cases that are not covered by tests.
-
-Maintainability refers to how easily an application can be understood, fixed, and extended.
-
-A well-organized project with readable code and appropriate tests is easier for other developers to review and maintain.
-
-## 9. Python DSA - Merge Sorted Arrays
-
-### Problem statement
-
-Given two arrays sorted in ascending order, merge them into one sorted array.
-
-Example:
-
-```python
-first = [1, 3, 5, 7]
-second = [2, 4, 6, 8]
-```
-
-Expected output:
-
-```text
-[1, 2, 3, 4, 5, 6, 7, 8]
-```
-
-### Approach
-
-The two-pointer technique compares elements from both arrays and adds the smaller element to the result.
-
-One pointer tracks the current position in the first array, while the other tracks the current position in the second array.
-
-When one array is exhausted, the remaining elements of the other array are appended to the result.
-
-### Python solution
-
-```python
-def merge_sorted_arrays(first, second):
-    i = 0
-    j = 0
-    result = []
-
-    while i < len(first) and j < len(second):
-        if first[i] <= second[j]:
-            result.append(first[i])
-            i += 1
-        else:
-            result.append(second[j])
-            j += 1
-
-    result.extend(first[i:])
-    result.extend(second[j:])
-
-    return result
-
-
-first = [1, 3, 5, 7]
-second = [2, 4, 6, 8]
-
-print(merge_sorted_arrays(first, second))
-```
-
-### Explanation
-
-1. Initialize two pointers at index zero.
-2. Compare the current elements of both arrays.
-3. Append the smaller element to the result.
-4. Move the pointer belonging to the selected element.
-5. Repeat until one array has no remaining elements.
-6. Append the remaining elements from either array.
-
-Because the input arrays are already sorted, the algorithm produces a sorted result without sorting the entire output again.
-
-### Complexity analysis
-
-Let `n` be the length of the first array and `m` be the length of the second array.
-
-- Time complexity: **O(n + m)** because each element is processed once.
-- Auxiliary space complexity: **O(n + m)** for the resulting array.
-
-## 10. Python DSA - Find Duplicate Elements
-
-### Problem statement
-
-Given a list of numbers, find all values that appear more than once.
-
-Example:
-
-```python
-numbers = [1, 2, 3, 2, 4, 5, 1, 6]
-```
-
-Expected output:
-
-```text
-[2, 1]
-```
-
-This output represents the order in which each value first appears as a duplicate.
-
-### Approach
-
-The solution uses two sets:
-
-- `seen` stores numbers that have already appeared.
-- `duplicates` stores numbers encountered more than once.
-
-If a number already exists in `seen`, it is added to `duplicates`. Otherwise, it is added to `seen`.
-
-### Python solution
-
-```python
-def find_duplicates(numbers):
-    seen = set()
-    duplicates = set()
-    result = []
-
-    for number in numbers:
-        if number in seen and number not in duplicates:
-            duplicates.add(number)
-            result.append(number)
-        else:
-            seen.add(number)
-
-    return result
-
-
-numbers = [1, 2, 3, 2, 4, 5, 1, 6]
-
-print(find_duplicates(numbers))
-```
-
-### Explanation
-
-The loop processes the list from left to right.
-
-When a number appears for the first time, it is added to `seen`. When it appears again, it is added to the duplicate collection and the result list.
-
-The `duplicates` set prevents a value from being added to the result more than once. The result list preserves the order in which duplicates are first detected.
-
-### Complexity analysis
-
-- Time complexity: **O(n)** average, because set membership checks and insertions take constant time on average.
-- Auxiliary space complexity: **O(n)** for the sets and result list.
-
-## 11. Time Complexity Basics
-
-Time complexity describes how an algorithm's running time grows as the input size increases.
-
-### O(1) - Constant time
-
-The operation takes approximately the same amount of time regardless of input size.
-
-For example, accessing the first element of a non-empty list:
-
-```python
-first_number = numbers[0]
-```
-
-### O(n) - Linear time
-
-The work grows in proportion to the number of elements.
-
-For example, a loop that visits each element once:
-
-```python
-for number in numbers:
-    print(number)
-```
-
-### O(n log n) - Linearithmic time
-
-This complexity commonly appears in efficient sorting algorithms, including merge sort.
-
-Merge sort divides the array into smaller parts, sorts them, and merges the sorted results.
-
-### Application to CineShelf and DSA
-
-The merge sorted arrays problem takes O(n + m) time because both arrays are traversed once.
-
-Finding duplicates takes O(n) expected time before any additional sorting, because each input element is processed once using sets.
-
-Understanding complexity helps developers evaluate algorithms and select efficient approaches for larger inputs.
-
-## 12. Frontend and Backend Optimization
-
-Optimization involves improving code quality or performance while preserving the required behavior.
-
-### Frontend optimization
-
-In React, useful practices include extracting reusable components, avoiding unnecessary duplication, keeping component responsibilities clear, and using performance optimizations only when needed.
-
-### Backend optimization
-
-In FastAPI, useful practices include separating route handling from business logic, avoiding unnecessary database queries, validating incoming data, and handling errors consistently.
-
-### Folder organization
-
-A clear folder structure improves maintainability by reducing the time required to locate and understand code. It does not automatically make the application execute faster, but it makes development and debugging easier.
-
-## 13. Running CineShelf Locally
-
-### Backend setup
-
-Open PowerShell and run:
+In PowerShell, enter the project folder with:
 
 ```powershell
-cd Day18\backend
+Set-Location Linkfic-Tasks\Day18
+```
+
+### 2. Create a PostgreSQL database
+
+Create a database named `cineshelf` and have the database username, password, host, and port ready. For a local PostgreSQL installation, the default port is usually `5432`.
+
+### 3. Configure and install the backend
+
+From the `Day18` folder:
+
+```powershell
+cd backend
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and configure the required values:
+Edit `backend/.env` and set `DATABASE_URL` to your PostgreSQL connection string and `JWT_SECRET_KEY` to a new random secret of at least 32 characters. Keep this `.env` file private; never commit real credentials or signing keys.
 
-- `DATABASE_URL` must point to a reachable PostgreSQL database.
-- `JWT_SECRET_KEY` must contain a unique random secret with at least 32 characters.
+Example connection string format:
 
-Create a virtual environment, install dependencies, and start FastAPI:
+```text
+postgresql+psycopg://db_user:db_password@localhost:5432/cineshelf
+```
+
+### 4. Configure and install the frontend
+
+Open another terminal in the `Day18` folder:
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+cd frontend
+npm ci
+```
+
+The checked-in `frontend/.env.example` points the development frontend at `http://localhost:8000`. Copy it to `frontend/.env` only if you need to change the API address.
+
+## Environment Variables
+
+| Variable | Required | Example | Purpose |
+|---|---:|---|---|
+| `DATABASE_URL` | Yes | `postgresql+psycopg://db_user:db_password@localhost:5432/cineshelf` | SQLAlchemy connection string for PostgreSQL. |
+| `JWT_SECRET_KEY` | Yes | `replace-with-a-new-random-secret-of-at-least-32-characters` | Private key used to sign access tokens. Use a different, randomly generated value in each environment. |
+| `CORS_ORIGINS` | No for local development | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated list of trusted frontend origins allowed to call the API. For production, specify the exact HTTPS frontend origin. |
+| `VITE_API_URL` | No for local development | `http://localhost:8000` | API base URL included in the frontend at build time. Set it to the deployed API URL before building. |
+
+Safe templates are provided in [`backend/.env.example`](backend/.env.example) and [`frontend/.env.example`](frontend/.env.example). Replace example credentials before use. Vite values are embedded into public JavaScript, so never put secrets in variables prefixed with `VITE_`.
+
+## Database Migrations
+
+There is currently **no migration tool or migration history** in this project. When the backend starts, SQLAlchemy calls `create_all` to create missing tables. That is convenient for development, but it does not safely manage schema changes to an existing production database.
+
+Before using a production database, add a migration workflow (for example, Alembic), create and review the initial migration, and apply migrations as a deliberate deployment step. Do not treat `create_all` as a replacement for production migrations. Back up an existing database before schema changes.
+
+## Running the Application
+
+### Start the backend
+
+From `Day18/backend`, with the virtual environment activated and `.env` configured:
+
+```powershell
 python -m uvicorn app.main:app --reload
 ```
 
-The API runs at `http://localhost:8000`.
+The API is available at `http://localhost:8000`. The health endpoint is `http://localhost:8000/health`.
 
-Interactive API documentation is available at `http://localhost:8000/docs`.
+### Start the frontend
 
-### Frontend setup
-
-Open a second PowerShell window:
+From `Day18/frontend` in a second terminal:
 
 ```powershell
-cd Day18\frontend
-npm ci
 npm run dev
 ```
 
-The Vite development server runs at `http://localhost:5173`.
+Open `http://localhost:5173` in a browser.
 
-If the API is hosted at a different address, create `frontend/.env.local` and set `VITE_API_URL` to the appropriate API base URL.
+## API Documentation
 
-## 14. Testing and Verification
+When the backend is running, open **[Swagger UI](http://localhost:8000/docs)** to inspect and try the live API. Open **[ReDoc](http://localhost:8000/redoc)** for an alternative generated view.
 
-Testing after refactoring is important because code changes can unintentionally affect existing functionality.
+The repository's written endpoint reference is [docs/API.md](docs/API.md). It lists routes, required authentication, request examples, validation rules, and expected status codes.
 
-Run the frontend checks:
+## Testing
+
+From the repository root:
 
 ```powershell
-cd Day18\frontend
+python -m pytest Day18\tests -q
+```
+
+Run this command with the Day18 backend virtual environment active. The API tests use a temporary in-memory SQLite database; they do not use or modify your PostgreSQL database.
+
+Run the frontend checks from `Day18/frontend`:
+
+```powershell
 npm run lint
 npm run build
 ```
 
-Run the Python test suite from the Day18 project root:
+## Screenshots
 
-```powershell
-python -m unittest discover -s tests -v
-```
+The screenshots below are desktop captures already included elsewhere in this repository. They show the sign-in page, movie collection, and add-movie form.
 
-Checked the following functionality:
+### Sign-in
 
-- User registration and sign-in.
-- Movie library display and CRUD operations.
-- Role-based admin view.
-- API request and response behavior.
-- Database connectivity and data validation.
-- Frontend build and lint checks.
-- DSA behavior for empty lists, duplicates, and equal values.
+![CineShelf sign-in screen](../Day20/screenshots/sign-in.png)
 
-The project should be considered verified only after the relevant commands run successfully and the application behavior has been checked.
+### Movie collection
 
-## 15. GitHub Updates
+![CineShelf movie collection](../Day20/screenshots/movie-library.png)
 
-Git helps track changes and makes it easier to review the refactoring work.
+### Add a movie
 
-First, inspect the repository status and changes:
+![CineShelf add-movie form](../Day20/screenshots/add-movie.png)
 
-```powershell
-git status
-git diff
-```
+The layout was checked in a browser at narrow phone, tablet, and desktop viewport widths. Separate mobile screenshot files have not yet been added.
 
-After reviewing the changes and completing the relevant tests, commit and push them:
+## Known Issues
 
-```powershell
-git add .
-git commit -m "Day 18: Refactor CineShelf code"
-git push
-```
+- Database schema creation currently uses SQLAlchemy `create_all`; production migrations have not been added.
+- Public registration always creates a regular user. A safe administrator bootstrap procedure still needs to be designed.
+- The access token is held in memory, so a page reload signs the user out.
+- Login rate limiting and account recovery are not implemented.
+- Docker Compose configuration is present in `Day21`, but a complete Docker image build and container run still need to be verified with Docker Engine available.
+- A real staging deployment, production secrets, managed database, backups, and deployment-domain checks have not been completed.
+- Existing screenshots are desktop screenshots; mobile-specific screenshots have not been captured.
 
+## Deployment
 
+Dockerfiles are provided for the backend and frontend. The Compose file in `Day21/docker-compose.yml` builds the `Day18` app containers and expects an existing PostgreSQL database; it does not create a database service.
 
+1. Ensure Docker Desktop and its Linux container engine are running.
+2. Copy `Day21/.env.example` to `Day21/.env`.
+3. Set the real database URL and a new random JWT key. Set `CORS_ORIGINS` to the exact browser-facing frontend origin.
+4. Set `VITE_API_URL` to the API address the user's browser can reach. This value is baked into the frontend at build time.
+5. From the repository root, build and start the services:
 
+   ```powershell
+   docker compose --env-file Day21/.env -f Day21/docker-compose.yml up --build
+   ```
 
+6. Verify the frontend, `GET /health`, authentication, and movie operations in the deployed environment.
+7. Stop local containers with:
 
+   ```powershell
+   docker compose --env-file Day21/.env -f Day21/docker-compose.yml down
+   ```
 
+For a public release, use HTTPS, store secrets in the hosting provider's secret manager, configure a managed PostgreSQL database and backups, apply reviewed database migrations, and verify the actual frontend/API domains. Do not deploy with the example values.
 
-## Key Learnings
+## Future Improvements
 
-By completing Day 18, the following concepts were practiced:
-
-1. Clean code principles and meaningful naming.
-2. Code reusability and component composition.
-3. React frontend organization.
-4. FastAPI backend structure and separation of responsibilities.
-5. Removing unused code and cross-day dependencies.
-6. Code reviews and maintainability.
-7. Merge Sorted Arrays using the two-pointer technique.
-8. Finding duplicate values using sets.
-9. Time complexity and auxiliary space analysis.
-10. Testing application functionality after refactoring.
-11. Git workflow and GitHub updates.
-
-## Deliverables
-
-- A self-contained CineShelf project.
-- Cleaner React component organization.
-- Better-structured FastAPI modules.
-- Updated authentication module and imports.
-- Environment configuration example without real secrets.
-- Reusable Python DSA functions.
-- Tests for important DSA edge cases.
-- Frontend and backend verification.
-- Updated GitHub repository.
-
-## Conclusion
-
-Day 18 focused on improving an existing full-stack application rather than introducing an entirely new feature. The refactoring work makes CineShelf easier to understand, review, and maintain by organizing code according to its responsibilities and reducing unnecessary dependencies.
-
-The DSA exercises reinforced array traversal, set operations, and time complexity analysis. Testing and reviewing the changes helps ensure that improvements to the code structure preserve the application's existing behavior.
+- Add Alembic migrations and a tested database upgrade/rollback process.
+- Create a secure, documented administrator bootstrap command or deployment process.
+- Add login throttling and a password-reset/account-recovery flow.
+- Improve token/session behavior while following the chosen browser security model.
+- Automate backend tests, frontend lint/build, and Docker builds in CI.
+- Add integration tests against PostgreSQL in addition to SQLite unit/API tests.
+- Capture and maintain current desktop and mobile screenshots.
+- Add accessibility checks and broader browser/device testing.
+- Deploy to staging, verify database backups and restore procedures, then document the release process.

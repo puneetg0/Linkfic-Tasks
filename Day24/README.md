@@ -263,23 +263,6 @@ I completed the backend organization task and understood how modular code helps 
 
 ## 5. Learning Resources
 
-I used the following resources to support my learning and improve my understanding of backend development.
-
-### YouTube Search Topics
-
-- FastAPI CRUD Operations
-- SQLAlchemy Tutorial
-- PostgreSQL with FastAPI
-- FastAPI Request Validation
-- FastAPI Project Structure
-
-### Recommended Channels
-
-- **Tech With Tim:** Python programming, backend development, and practical coding tutorials.
-- **Traversy Media:** Web development fundamentals, APIs, and full-stack project tutorials.
-- **freeCodeCamp:** Detailed programming courses covering Python, databases, FastAPI, and related technologies.
-
-These resources support learning through practical examples and step-by-step explanations.
 
 ## 6. Learn Along the Way
 
